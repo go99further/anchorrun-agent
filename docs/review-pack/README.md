@@ -1,8 +1,8 @@
-# Pico Review Pack
+# AnchorRun Agent Review Pack
 
 ## Project pitch
 
-Pico is a lightweight local coding agent harness for repository-grounded engineering tasks. It wraps a model with workspace context, explicit tools, state tracking, memory, run artifacts, and benchmark evidence.
+AnchorRun Agent is a lightweight local coding agent harness for repository-grounded engineering tasks. It wraps a model with workspace context, explicit tools, state tracking, memory, run artifacts, and benchmark evidence.
 
 ## Architecture map
 

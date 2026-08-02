@@ -1,8 +1,8 @@
-# Pico Agent Harness
+# AnchorRun Agent
 
-Pico Agent Harness 是一个面向代码仓库的轻量本地 coding agent。它直接跑在终端里，先看当前工作区，再用一组受约束的工具去读文件、改文件、跑命令，并把会话状态保存在本地 `.pico/` 目录里。
+AnchorRun Agent 是一个面向代码仓库的可恢复、可审计本地 coding agent。它直接跑在终端里，先锚定当前 workspace，再通过受约束的工具读文件、改文件、跑命令，并记录记忆、checkpoint、trace 和运行工件。
 
-这是 `go99further/pico-agent-harness` 的个人维护版本。项目的 Python 包名和 CLI 命令仍然是 `pico`，以保持现有使用方式和兼容性。
+这是 `go99further/anchorrun-agent` 的个人维护版本。项目新增 `anchorrun` CLI 命令，同时保留 Python 包名和 `pico` CLI 别名，以保持兼容性。
 
 它更像一个能在仓库里持续工作的命令行助手，不是纯聊天窗口。你可以拿它做代码排查、测试修复、仓库分析，或者让它在当前项目里执行一次性的工程任务。
 
@@ -16,7 +16,7 @@ Pico Agent Harness 是一个面向代码仓库的轻量本地 coding agent。它
 ## 主要特性
 
 - 包名是 `pico`
-- CLI 命令是 `pico`
+- CLI 命令是 `anchorrun`（兼容命令：`pico`）
 - 模块入口是 `python -m pico`
 - 会话保存在 `.pico/sessions/`
 - 每次运行的工件保存在 `.pico/runs/<run_id>/`
@@ -61,19 +61,19 @@ pip install -e .
 在当前仓库里启动交互模式。默认 provider 是 DeepSeek：
 
 ```bash
-uv run pico
+uv run anchorrun
 ```
 
 指定另一个工作目录：
 
 ```bash
-uv run pico --cwd /path/to/repo
+uv run anchorrun --cwd /path/to/repo
 ```
 
 直接跑一次性任务：
 
 ```bash
-uv run pico "inspect the test failures and propose a fix"
+uv run anchorrun "inspect the test failures and propose a fix"
 ```
 
 如果当前环境已经安装过包，也可以直接这样启动：

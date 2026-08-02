@@ -3,13 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pico-agent-harness"
+name = "anchorrun-agent"
 version = "0.1.0"
-description = "Pico Agent Harness: a local coding agent with constrained tools, memory, checkpoints, and evaluation"
+description = "AnchorRun Agent: a local coding agent with constrained tools, memory, checkpoints, and evaluation"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
+anchorrun = "pico.cli:main"
 pico = "pico.cli:main"
 
 [dependency-groups]
