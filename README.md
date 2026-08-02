@@ -223,6 +223,8 @@ PICO_ANTHROPIC_MODEL="claude-sonnet-4-6"
 
 AnchorRun 对 Anthropic 官方和 right.codes 的 Messages API 支持 prompt cache：稳定的 workspace/tool 前缀会作为带 `cache_control.type=ephemeral` 的 system content block 发送，动态的 memory、history 和当前请求仍放在 user content 中。服务端返回 `cache_read_input_tokens` 时，运行工件会记录 `cached_tokens` 和 `cache_hit`。其他 Anthropic-compatible 网关不一定实现同样的缓存语义，使用前应确认其 API 文档。
 
+一次真实 DeepSeek Anthropic-compatible endpoint 验证记录在 `benchmarks/results/anthropic-cache-real-2026-08-02.json`：两次请求使用相同 system 前缀，第二次返回 `cache_read_input_tokens=1792`；该结果不代表所有 Anthropic-compatible 网关都支持缓存。
+
 ### Ollama
 
 如果要改用本地 Ollama，显式传 `--provider ollama`：

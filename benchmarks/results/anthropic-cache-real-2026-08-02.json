@@ -1,0 +1,34 @@
+{
+  "captured_at": "2026-08-02",
+  "provider": "deepseek",
+  "protocol": "Anthropic Messages API",
+  "endpoint": "https://api.deepseek.com/anthropic",
+  "model": "deepseek-v4-pro[1m]",
+  "experiment": "two requests with an identical cacheable system prefix and different user messages",
+  "requests": [
+    {
+      "request": 1,
+      "status": 200,
+      "input_tokens": 1822,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 32
+    },
+    {
+      "request": 2,
+      "status": 200,
+      "input_tokens": 30,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 1792,
+      "output_tokens": 27
+    }
+  ],
+  "result": {
+    "cache_hit": true,
+    "cache_read_input_tokens_on_second_request": 1792
+  },
+  "limitations": [
+    "This is a real DeepSeek Anthropic-compatible endpoint run, not an Anthropic official endpoint run.",
+    "The result verifies this endpoint's cache_control behavior and should not be generalized to every Anthropic-compatible gateway."
+  ]
+}
