@@ -506,4 +506,6 @@ class ContextManager:
                 "rendered_chars": len(user_message),
                 "section_chars": len(rendered[CURRENT_REQUEST_SECTION].rendered),
             },
+            "cacheable_prefix": rendered["prefix"].rendered,
+            "cacheable_prefix_chars": rendered["prefix"].rendered_chars,
         }

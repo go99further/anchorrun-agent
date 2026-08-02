@@ -235,7 +235,15 @@ class OpenAICompatibleModelClient:
         self.supports_prompt_cache = any(host in self.base_url for host in ("openai.com", "right.codes"))
         self.last_completion_metadata = {}
 
-    def complete(self, prompt, max_new_tokens, prompt_cache_key=None, prompt_cache_retention=None):
+    def complete(
+        self,
+        prompt,
+        max_new_tokens,
+        prompt_cache_key=None,
+        prompt_cache_retention=None,
+        prompt_cache_prefix=None,
+    ):
+        del prompt_cache_prefix
         """向 OpenAI-compatible `/responses` 接口发起一次模型调用。
 
         为什么存在：
@@ -359,6 +367,20 @@ def _extract_anthropic_text(data):
     return ""
 
 
+def _extract_anthropic_usage(data):
+    usage = data.get("usage") or {}
+    cache_read_tokens = int(usage.get("cache_read_input_tokens") or 0)
+    cache_creation_tokens = int(usage.get("cache_creation_input_tokens") or 0)
+    return {
+        "input_tokens": usage.get("input_tokens"),
+        "output_tokens": usage.get("output_tokens"),
+        "cache_read_input_tokens": cache_read_tokens,
+        "cache_creation_input_tokens": cache_creation_tokens,
+        "cached_tokens": cache_read_tokens,
+        "cache_hit": cache_read_tokens > 0,
+    }
+
+
 class AnthropicCompatibleModelClient:
     def __init__(self, model, base_url, api_key, temperature, timeout):
         self.model = model
@@ -366,14 +388,31 @@ class AnthropicCompatibleModelClient:
         self.api_key = api_key
         self.temperature = temperature
         self.timeout = timeout
-        self.supports_prompt_cache = False
+        self.supports_prompt_cache = any(host in self.base_url for host in ("anthropic.com", "right.codes"))
         self.last_completion_metadata = {}
 
-    def complete(self, prompt, max_new_tokens, prompt_cache_key=None, prompt_cache_retention=None):
-        # 为了保持统一接口，runtime 仍然会传缓存参数进来；
-        # 这里只是显式丢弃，因为当前 Anthropic-compatible 路径没有接缓存复用。
-        del prompt_cache_key, prompt_cache_retention
+    def complete(
+        self,
+        prompt,
+        max_new_tokens,
+        prompt_cache_key=None,
+        prompt_cache_retention=None,
+        prompt_cache_prefix=None,
+    ):
         self.last_completion_metadata = {}
+        dynamic_prompt = prompt
+        system = None
+        if self.supports_prompt_cache and prompt_cache_prefix:
+            if not prompt.startswith(prompt_cache_prefix):
+                raise ValueError("prompt cache prefix must match the beginning of the prompt")
+            dynamic_prompt = prompt[len(prompt_cache_prefix):].lstrip("\n")
+            system = [
+                {
+                    "type": "text",
+                    "text": prompt_cache_prefix,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
         payload = {
             "model": self.model,
             "messages": [
@@ -382,7 +421,7 @@ class AnthropicCompatibleModelClient:
                     "content": [
                         {
                             "type": "text",
-                            "text": prompt,
+                            "text": dynamic_prompt,
                         }
                     ],
                 }
@@ -390,6 +429,8 @@ class AnthropicCompatibleModelClient:
             "max_tokens": max_new_tokens,
             "stream": False,
         }
+        if system:
+            payload["system"] = system
         if self.temperature is not None:
             payload["temperature"] = self.temperature
 
@@ -435,6 +476,12 @@ class AnthropicCompatibleModelClient:
             ) from exc
         if data.get("error"):
             raise RuntimeError(f"Anthropic-compatible error: {data['error']}")
+        self.last_completion_metadata = {
+            "prompt_cache_supported": self.supports_prompt_cache,
+            "prompt_cache_key": prompt_cache_key,
+            "prompt_cache_retention": prompt_cache_retention,
+            **_extract_anthropic_usage(data),
+        }
         text = _extract_anthropic_text(data)
         if text:
             return text

@@ -620,6 +620,68 @@ def test_anthropic_compatible_client_extracts_first_text_block():
     assert result == "<final>ok</final>"
 
 
+def test_anthropic_compatible_client_sends_prompt_cache_system_block_and_usage():
+    captured = {}
+
+    class FakeResponse:
+        headers = {"Content-Type": "application/json"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps(
+                {
+                    "content": [{"type": "text", "text": "<final>ok</final>"}],
+                    "usage": {
+                        "input_tokens": 1200,
+                        "cache_read_input_tokens": 900,
+                        "cache_creation_input_tokens": 0,
+                        "output_tokens": 24,
+                    },
+                }
+            ).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    client = AnthropicCompatibleModelClient(
+        model="claude-sonnet-4-5-20250929",
+        base_url="https://api.anthropic.com/v1",
+        api_key="sk-test",
+        temperature=0.2,
+        timeout=30,
+    )
+    prefix = "Stable workspace and tool instructions."
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        result = client.complete(
+            prefix + "\n\nCurrent user request: inspect README.md",
+            42,
+            prompt_cache_key="prefix-hash-123",
+            prompt_cache_retention="in_memory",
+            prompt_cache_prefix=prefix,
+        )
+
+    assert result == "<final>ok</final>"
+    assert captured["body"]["system"] == [
+        {
+            "type": "text",
+            "text": prefix,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+    assert captured["body"]["messages"][0]["content"][0]["text"] == "Current user request: inspect README.md"
+    assert client.last_completion_metadata["prompt_cache_supported"] is True
+    assert client.last_completion_metadata["cache_read_input_tokens"] == 900
+    assert client.last_completion_metadata["cached_tokens"] == 900
+    assert client.last_completion_metadata["cache_hit"] is True
+
+
 def test_build_agent_uses_openai_provider_and_model_override(tmp_path):
     args = type(
         "Args",
