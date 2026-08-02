@@ -23,7 +23,7 @@ BASE_TOOL_SPECS = {
         "description": "Read a UTF-8 file by line range.",
     },
     "search": {
-        "schema": {"pattern": "str", "path": "str='.'"},
+        "schema": {"pattern": "str", "path": "str='.'", "max_results": "int=50"},
         "risky": False,
         "description": "Search the workspace with rg or a simple fallback.",
     },
@@ -57,7 +57,7 @@ def legal_tool_names():
 TOOL_EXAMPLES = {
     "list_files": '<tool>{"name":"list_files","args":{"path":"."}}</tool>',
     "read_file": '<tool>{"name":"read_file","args":{"path":"README.md","start":1,"end":80}}</tool>',
-    "search": '<tool>{"name":"search","args":{"pattern":"binary_search","path":"."}}</tool>',
+    "search": '<tool>{"name":"search","args":{"pattern":"binary_search","path":".","max_results":50}}</tool>',
     "run_shell": '<tool>{"name":"run_shell","args":{"command":"uv run --with pytest python -m pytest -q","timeout":20}}</tool>',
     "write_file": '<tool name="write_file" path="binary_search.py"><content>def binary_search(nums, target):\n    return -1\n</content></tool>',
     "patch_file": '<tool name="patch_file" path="binary_search.py"><old_text>return -1</old_text><new_text>return mid</new_text></tool>',
@@ -107,6 +107,9 @@ def validate_tool(context, name, args):
         if not pattern:
             raise ValueError("pattern must not be empty")
         context.path(args.get("path", "."))
+        max_results = int(args.get("max_results", 50))
+        if max_results < 1 or max_results > 200:
+            raise ValueError("max_results must be in [1, 200]")
         return
 
     if name == "run_shell":
@@ -185,16 +188,21 @@ def tool_search(context, args):
     if not pattern:
         raise ValueError("pattern must not be empty")
     path = context.path(args.get("path", "."))
+    max_results = int(args.get("max_results", 50))
+    if max_results < 1 or max_results > 200:
+        raise ValueError("max_results must be in [1, 200]")
 
     if shutil.which("rg"):
         # 优先用 rg，因为搜索会非常频繁，搜索延迟会直接影响 agent 控制循环。
         result = subprocess.run(
-            ["rg", "-n", "--smart-case", "--max-count", "200", pattern, str(path)],
+            ["rg", "-n", "--smart-case", "--max-count", str(max_results), pattern, str(path)],
             cwd=context.root,
             capture_output=True,
             text=True,
         )
-        return result.stdout.strip() or result.stderr.strip() or "(no matches)"
+        if result.stdout.strip():
+            return "\n".join(result.stdout.splitlines()[:max_results])
+        return result.stderr.strip() or "(no matches)"
 
     matches = []
     files = [path] if path.is_file() else [
@@ -205,7 +213,7 @@ def tool_search(context, args):
         for number, line in enumerate(file_path.read_text(encoding="utf-8", errors="replace").splitlines(), start=1):
             if pattern.lower() in line.lower():
                 matches.append(f"{file_path.relative_to(context.root)}:{number}:{line}")
-                if len(matches) >= 200:
+                if len(matches) >= max_results:
                     return "\n".join(matches)
     return "\n".join(matches) or "(no matches)"
 

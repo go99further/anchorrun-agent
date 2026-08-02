@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import re
+import subprocess
 
 from .workspace import clip
 
@@ -140,6 +141,26 @@ class ToolExecutor:
             )
             agent.record_process_note_for_tool(name, metadata)
             return ToolExecutionResult(content=content, metadata=metadata)
+        except subprocess.TimeoutExpired as exc:
+            after_snapshot = agent.capture_workspace_snapshot() if tool["risky"] else before_snapshot
+            affected_paths, diff_summary = agent.diff_workspace_snapshots(before_snapshot, after_snapshot)
+            workspace_changed = bool(affected_paths)
+            metadata = _metadata(
+                "partial_success" if workspace_changed else "error",
+                tool_error_code="tool_timeout",
+                risk_level="high" if tool["risky"] else "low",
+                read_only=not tool["risky"],
+                affected_paths=affected_paths,
+                workspace_changed=workspace_changed,
+                workspace_fingerprint=agent.workspace.fingerprint(),
+                diff_summary=diff_summary,
+            )
+            agent.record_process_note_for_tool(name, metadata)
+            timeout = getattr(exc, "timeout", "configured limit")
+            return ToolExecutionResult(
+                content=f"error: tool {name} timed out after {timeout} seconds",
+                metadata=metadata,
+            )
         except Exception as exc:
             after_snapshot = agent.capture_workspace_snapshot() if tool["risky"] else before_snapshot
             affected_paths, diff_summary = agent.diff_workspace_snapshots(before_snapshot, after_snapshot)

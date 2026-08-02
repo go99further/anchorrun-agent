@@ -1,3 +1,6 @@
+import subprocess
+from unittest.mock import patch
+
 from pico import FakeModelClient, Pico, SessionStore, WorkspaceContext
 from pico.tool_executor import ToolExecutor, ToolExecutionResult
 
@@ -33,3 +36,17 @@ def test_pico_run_tool_keeps_compatibility_metadata(tmp_path):
 
     assert "# README.md" in content
     assert agent._last_tool_result_metadata["tool_status"] == "ok"
+
+
+def test_tool_executor_classifies_shell_timeout(tmp_path):
+    agent = build_agent(tmp_path)
+
+    def raise_timeout(_args):
+        raise subprocess.TimeoutExpired(cmd="sleep", timeout=1)
+
+    with patch.dict(agent.tools["run_shell"], {"run": raise_timeout}):
+        result = ToolExecutor(agent).execute("run_shell", {"command": "sleep 1", "timeout": 1})
+
+    assert result.metadata["tool_status"] == "error"
+    assert result.metadata["tool_error_code"] == "tool_timeout"
+    assert "timed out after 1 seconds" in result.content

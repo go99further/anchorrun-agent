@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from pico.tool_context import ToolContext
-from pico.tools import build_tool_registry, tool_delegate, tool_read_file
+from pico.tools import build_tool_registry, tool_delegate, tool_read_file, tool_search
 
 
 def test_tool_context_supports_file_tools_without_full_pico(tmp_path):
@@ -52,3 +52,20 @@ def test_build_tool_registry_binds_runners_to_tool_context(tmp_path):
 
     assert "read_file" in tools
     assert "delegate" not in tools
+
+
+def test_search_respects_result_limit(tmp_path):
+    for index in range(5):
+        (tmp_path / f"note-{index}.txt").write_text("needle\n", encoding="utf-8")
+    context = ToolContext(
+        root=tmp_path,
+        path_resolver=lambda raw_path: (tmp_path / raw_path).resolve(),
+        shell_env_provider=lambda: {"PWD": str(tmp_path)},
+        depth=0,
+        max_depth=1,
+        spawn_delegate=lambda args: "unused",
+    )
+
+    result = tool_search(context, {"pattern": "needle", "max_results": 2})
+
+    assert len(result.splitlines()) == 2
